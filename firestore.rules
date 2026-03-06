@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── 使用者資料 ──────────────────────────────────────
+    // 所有登入用戶可以讀取，只有本人可以修改自己的資料
+    match /users/{userId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+
+    // ── 配對資料 ────────────────────────────────────────
+    // 所有登入用戶可以讀取和建立
+    // 更新：配對發起人 或 狀態為 waiting（允許他人加入）
+    // 刪除：只有發起人
+    match /matches/{matchId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.creatorId == request.auth.uid;
+      allow update: if request.auth != null
+                    && (request.auth.uid == resource.data.creatorId
+                        || resource.data.status == 'waiting');
+      allow delete: if request.auth.uid == resource.data.creatorId;
+    }
+
+    // ── 聊天訊息 ────────────────────────────────────────
+    // 只有登入用戶可以讀取和寫入聊天訊息
+    match /chats/{matchId}/messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
